@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Scanner - Multi-Timeframe</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #151a24;
+      --border: #2a3141;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 15px;
+      font-size: 14px;
+    }
+    h1 { font-size: 20px; margin-bottom: 10px; color: #fff; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    h1 span { font-size: 11px; background: var(--blue); color: #fff; padding: 3px 8px; border-radius: 12px; }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    button:hover { background: var(--border); }
+    button.primary { background: var(--blue); border-color: var(--blue); color: white; }
+    button.primary:hover { background: #2563eb; }
+    button.danger { background: var(--red); border-color: var(--red); color: white; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 25px 0 10px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .section-title.pulse { color: var(--green); }
+    .section-title.all { color: var(--blue); }
+
+    .table-wrapper {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      background: #11151d;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: #1a202c; }
+    
+    .symbol { font-weight: 700; color: #fff; font-size: 13px; }
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+    .yellow { color: var(--yellow); }
+    .muted { color: var(--muted); }
+    
+    .badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+    #log {
+      background: #0f131a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 20px;
+    }
+    #log div { margin-bottom: 4px; }
+    #log .err { color: var(--red); }
+    #log .ok { color: var(--green); }
+    #log .warn { color: var(--yellow); }
+    
+    .empty-state {
+      padding: 30px;
+      text-align: center;
+      color: var(--muted);
+      font-style: italic;
+    }
+    
+    .timeframe-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+      font-size: 11px;
+    }
+    .tf-item { display: flex; align-items: center; gap: 4px; }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ Binance Futures Scanner <span>Multi-TF: 15m | 4h | 24h</span></h1>
+  
+  <div class="controls">
+    <button id="scanBtn" class="primary">▶ Scan Now</button>
+    <button id="autoBtn">Auto: OFF</button>
+    <span class="status" id="status">Ready to scan. (Top 30 coins - ~30s)</span>
+  </div>
+
+  <div class="section-title pulse">🔥 CONTINUOUS VOLUME & OI INCREASE (15m + 4h + 24h)</div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Price</th>
+          <th>24h%</th>
+          <th>Vol 15m</th>
+          <th>OI 15m</th>
+          <th>Vol 4h</th>
+          <th>OI 4h</th>
+          <th>Vol 24h</th>
+          <th>OI 24h</th>
+          <th>OI Value</th>
+        </tr>
+      </thead>
+      <tbody id="strongSignals">
+        <tr><td colspan="10" class="empty-state">Scan to find strong signals...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title all">📊 ALL SCANNED COINS (Top Volume)</div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Price</th>
+          <th>24h Vol</th>
+          <th>15m V+OI</th>
+          <th>4h V+OI</th>
+          <th>24h V+OI</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="allCoins">
+        <tr><td colspan="7" class="empty-state">Scan to see data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="log">Ready.</div>
+
+  <script>
+    // --- Configuration ---
+    const ENDPOINTS = [
+      'https://fapi.binance.com',
+      'https://corsproxy.io/?https://fapi.binance.com',
+      'https://api.allorigins.win/raw?url=https://fapi.binance.com'
+    ];
+    const TOP_N = 30; // Reduced to avoid rate limits due to 6 API calls per coin
+    let autoInterval = null;
+    let workingEndpoint = null;
+
+    // --- DOM Elements ---
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const strongSignalsBody = document.getElementById('strongSignals');
+    const allCoinsBody = document.getElementById('allCoins');
+    const scanBtn = document.getElementById('scanBtn');
+    const autoBtn = document.getElementById('autoBtn');
+
+    // --- Logging ---
+    function log(msg, type = '') {
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = `[${time}] ${msg}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // --- API Fetching with Fallback ---
+    async function tryFetch(path) {
+      const order = workingEndpoint 
+        ? [workingEndpoint, ...ENDPOINTS.filter(e => e !== workingEndpoint)]
+        : ENDPOINTS;
+
+      let lastErr;
+      for (const base of order) {
+        const url = path.startsWith('http') ? path : `${base}${path}`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!workingEndpoint) {
+            workingEndpoint = base;
+            log(`✅ Connected via: ${base}`, 'ok');
+          }
+          return data;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('All endpoints failed');
+    }
+
+    // --- Helper: Calculate Percentage Change ---
+    function pctChange(oldVal, newVal) {
+      if (oldVal === 0) return 0;
+      return ((newVal - oldVal) / oldVal) * 100;
+    }
+
+    // --- Helper: Analyze Trend (Checks if last 3 periods are continuously increasing) ---
+    function analyzeTrend(dataArray, valueExtractor) {
+      if (dataArray.length < 3) return { isIncreasing: false, changePct: 0 };
+      
+      const v1 = valueExtractor(dataArray[dataArray.length - 3]);
+      const v2 = valueExtractor(dataArray[dataArray.length - 2]);
+      const v3 = valueExtractor(dataArray[dataArray.length - 1]);
+      
+      const isIncreasing = v3 > v2 && v2 > v1;
+      const changePct = pctChange(v2, v3);
+      
+      return { isIncreasing, changePct };
+    }
+
+    // --- Main Scan Function ---
+    async function scan() {
+      statusEl.textContent = 'Scanning... (This takes ~30s)';
+      scanBtn.disabled = true;
+      logEl.innerHTML = ''; // Clear log
+      log('Starting multi-timeframe scan...');
+      
+      strongSignalsBody.innerHTML = '<tr><td colspan="10" class="empty-state">Scanning for strong signals...</td></tr>';
+      allCoinsBody.innerHTML = '<tr><td colspan="7" class="empty-state">Loading data...</td></tr>';
+
+      try {
+        // 1. Fetch all 24hr tickers
+        const tickers = await tryFetch('/fapi/v1/ticker/24hr');
+        if (!Array.isArray(tickers)) throw new Error('Invalid ticker response');
+
+        // 2. Filter USDT pairs and sort by volume
+        const usdtPairs = tickers.filter(t => 
+          t.symbol.endsWith('USDT') && 
+          !t.symbol.includes('UP') && 
+          !t.symbol.includes('DOWN') &&
+          !['USDCUSDT', 'BUSDUSDT', 'FDUSDUSDT', 'TUSDUSDT'].includes(t.symbol)
+        );
+        
+        usdtPairs.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+        const candidates = usdtPairs.slice(0, TOP_N);
+        
+        log(`Scanning top ${candidates.length} coins by 24h volume...`);
+        allCoinsBody.innerHTML = '';
+        strongSignalsBody.innerHTML = '';
+
+        let strongSignalsCount = 0;
+
+        // 3. Loop through candidates
+        for (let i = 0; i < candidates.length; i++) {
+          const t = candidates[i];
+          const symbol = t.symbol;
+          const price = parseFloat(t.lastPrice);
+          const change24h = parseFloat(t.priceChangePercent);
+          const vol24h = parseFloat(t.quoteVolume);
+
+          try {
+            // --- Fetch Data for 15m, 4h, and 24h ---
+            // We need 3 candles for 15m and 4h, 2 for 24h (to compare current vs previous)
+            // Using limit=5 to ensure we have enough data for calculations
+            const [k15, k4h, k24h, oi15, oi4h, oi24h] = await Promise.all([
+              tryFetch(`/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=5`),
+              tryFetch(`/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=5`),
+              tryFetch(`/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=3`),
+              tryFetch(`/futures/data/openInterestHist?symbol=${symbol}&period=15m&limit=5`),
+              tryFetch(`/futures/data/openInterestHist?symbol=${symbol}&period=4h&limit=5`),
+              tryFetch(`/futures/data/openInterestHist?symbol=${symbol}&period=1d&limit=3`)
+            ]);
+
+            // --- Analyze Volume Trends ---
+            const vol15 = analyzeTrend(k15, k => parseFloat(k[5])); // k[5] is volume
+            const vol4h = analyzeTrend(k4h, k => parseFloat(k[5]));
+            const vol24h = analyzeTrend(k24h, k => parseFloat(k[5]));
+
+            // --- Analyze Open Interest Trends ---
+            const oi15Trend = analyzeTrend(oi15, o => parseFloat(o.sumOpenInterest));
+            const oi4hTrend = analyzeTrend(oi4h, o => parseFloat(o.sumOpenInterest));
+            const oi24hTrend = analyzeTrend(oi24h, o => parseFloat(o.sumOpenInterest));
+
+            // Current OI Value in USD
+            const currentOiValue = parseFloat(oi15[oi15.length - 1].sumOpenInterest) * price;
+
+            // --- Scoring ---
+            let score = 0;
+            if (vol15.isIncreasing && oi15Trend.isIncreasing) score += 30;
+            if (vol4h.isIncreasing && oi4hTrend.isIncreasing) score += 30;
+            if (vol24h.isIncreasing && oi24hTrend.isIncreasing) score += 40;
+
+            // --- Formatting Helpers ---
+            const formatBadge = (isInc, pct) => {
+              if (isInc) return `<span class="badge badge-green">↑ ${pct.toFixed(1)}%</span>`;
+              return `<span class="badge badge-red">↓ ${pct.toFixed(1)}%</span>`;
+            };
+
+            const vol15Badge = formatBadge(vol15.isIncreasing, vol15.changePct);
+            const oi15Badge = formatBadge(oi15Trend.isIncreasing, oi15Trend.changePct);
+            const vol4hBadge = formatBadge(vol4h.isIncreasing, vol4h.changePct);
+            const oi4hBadge = formatBadge(oi4hTrend.isIncreasing, oi4hTrend.changePct);
+            const vol24hBadge = formatBadge(vol24h.isIncreasing, vol24h.changePct);
+            const oi24hBadge = formatBadge(oi24hTrend.isIncreasing, oi24hTrend.changePct);
+
+            // --- Add to All Coins Table ---
+            const rowAll = document.createElement('tr');
+            rowAll.innerHTML = `
+              <td class="symbol">${symbol}</td>
+              <td>$${price < 1 ? price.toFixed(4) : price.toFixed(2)}</td>
+              <td>$${(vol24h / 1000000).toFixed(2)}M</td>
+              <td>${vol15Badge} ${oi15Badge}</td>
+              <td>${vol4hBadge} ${oi4hBadge}</td>
+              <td>${vol24hBadge} ${oi24hBadge}</td>
+              <td class="yellow" style="font-weight:bold">${score}</td>
+            `;
+            allCoinsBody.appendChild(rowAll);
+
+            // --- Check for STRONG SIGNAL (Continuous Increase in ALL timeframes) ---
+            const isStrongSignal = 
+              vol15.isIncreasing && oi15Trend.isIncreasing &&
+              vol4h.isIncreasing && oi4hTrend.isIncreasing &&
+              vol24h.isIncreasing && oi24hTrend.isIncreasing;
+
+            if (isStrongSignal) {
+              strongSignalsCount++;
+              const rowStrong = document.createElement('tr');
+              rowStrong.innerHTML = `
+                <td class="symbol" style="color: var(--green)">🚀 ${symbol}</td>
+                <td>$${price < 1 ? price.toFixed(4) : price.toFixed(2)}</td>
+                <td class="${change24h >= 0 ? 'green' : 'red'}">${change24h > 0 ? '+' : ''}${change24h.toFixed(2)}%</td>
+                <td class="green">+${vol15.changePct.toFixed(1)}%</td>
+                <td class="green">+${oi15Trend.changePct.toFixed(1)}%</td>
+                <td class="green">+${vol4h.changePct.toFixed(1)}%</td>
+                <td class="green">+${oi4hTrend.changePct.toFixed(1)}%</td>
+                <td class="green">+${vol24h.changePct.toFixed(1)}%</td>
+                <td class="green">+${oi24hTrend.changePct.toFixed(1)}%</td>
+                <td>$${(currentOiValue / 1000000).toFixed(2)}M</td>
+              `;
+              strongSignalsBody.appendChild(rowStrong);
+              log(`🔥 STRONG SIGNAL: ${symbol} (All Timeframes Aligned)`, 'ok');
+            } else {
+              log(`   ${symbol} | 15m: ${vol15.isIncreasing && oi15Trend.isIncreasing ? 'OK' : 'No'} | 4h: ${vol4h.isIncreasing && oi4hTrend.isIncreasing ? 'OK' : 'No'} | 24h: ${vol24h.isIncreasing && oi24hTrend.isIncreasing ? 'OK' : 'No'}`);
+            }
+
+            // Small delay to avoid rate limits (6 API calls per coin)
+            await new Promise(r => setTimeout(r, 200));
+
+          } catch (err) {
+            log(`⚠️ Error scanning ${symbol}: ${err.message}`, 'err');
+          }
+        }
+
+        if (strongSignalsCount === 0) {
+          strongSignalsBody.innerHTML = '<tr><td colspan="10" class="empty-state">No coins with continuous Volume AND OI increase across all timeframes found right now.</td></tr>';
+        }
+
+        statusEl.textContent = `Done. ${strongSignalsCount} strong signals found.`;
+        log(`Scan complete. Found ${strongSignalsCount} strong signals.`, 'ok');
+
+      } catch (e) {
+        log(`❌ Fatal Error: ${e.message}`, 'err');
+        statusEl.textContent = 'Error occurred. Check log.';
+        strongSignalsBody.innerHTML = '<tr><td colspan="10" class="empty-state err">Error loading data. Check log.</td></tr>';
+        allCoinsBody.innerHTML = '<tr><td colspan="7" class="empty-state err">Error loading data. Check log.</td></tr>';
+      } finally {
+        scanBtn.disabled = false;
+      }
+    }
+
+    // --- Event Listeners ---
+    scanBtn.addEventListener('click', scan);
+
+    autoBtn.addEventListener('click', () => {
+      if (autoInterval) {
+        clearInterval(autoInterval);
+        autoInterval = null;
+        autoBtn.textContent = 'Auto: OFF';
+        autoBtn.classList.remove('danger');
+        log('Auto-scan stopped.');
+      } else {
+        autoInterval = setInterval(scan, 120000); // Every 2 minutes to respect rate limits
+        autoBtn.textContent = 'Auto: ON';
+        autoBtn.classList.add('danger');
+        log('Auto-scan started (every 2 mins).');
+        scan();
+      }
+    });
+  </script>
+</body>
+</html>
